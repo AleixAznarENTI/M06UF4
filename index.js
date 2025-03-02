@@ -38,7 +38,7 @@ ws_server.on('connection', function (conn) {
             player1 = null;
             notifyGamePause();
             if (player2) player2.send(JSON.stringify({ message: "Player 1 disconnected" }));
-	    spectatorMessage("Player 1 disconnected");
+	    	spectatorMessage({ message: "Player 1 disconnected"});
         });
 
         player1.on('message', function (msg) {
@@ -77,7 +77,7 @@ ws_server.on('connection', function (conn) {
             let gameStart = { gS: true };
             if (player1) player1.send(JSON.stringify(gameStart));
             if (player2) player2.send(JSON.stringify(gameStart));
-	    spectatorMessage(gameStart);
+	   		spectatorMessage(gameStart);
         }, 1000);
 
         player2.on('close', function () {
@@ -85,7 +85,7 @@ ws_server.on('connection', function (conn) {
             player2 = null;
             notifyGamePause();
             if (player1) player1.send(JSON.stringify({ message: "Player 2 disconnected" }));
-	    spectatorMessage("Player 2 disconnected");
+			spectatorMessage({ message: "Player 2 disconnected"});
         });
 
         player2.on('message', function (msg) {
@@ -93,7 +93,7 @@ ws_server.on('connection', function (conn) {
             let info = JSON.parse(msg);
             if (info.y2 != null) {
                 player1.send(JSON.stringify(info));
-		spectatorMessage(info);
+				spectatorMessage(info);
             }
         });
     }
