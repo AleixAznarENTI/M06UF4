@@ -4,7 +4,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.87.0/phaser.min.js"></script>
 	<script>
 let player_num = 0;
-	let ws = new WebSocket('ws://172.31.98.77:7777')
+	let ws = new WebSocket('ws://192.168.1.53:7777');
 
 	ws.onmessage = function(msg){
 		console.log(msg.data);
@@ -28,6 +28,12 @@ let player_num = 0;
 			score1 = data.s1;
 			score2 = data.s2;
 		}
+		else if (data.p != null){
+			game_over = data.p;
+		}
+		else if (data.gS != null){
+			gameStart = data.gS;
+		}
 		//else if (data.)
 	};
 
@@ -44,6 +50,7 @@ update: update
 };
 
 let game = new Phaser.Game(config);
+let gameStart = false;
 
 let player1, player2;
 let player1_x = 64, player1_y=450;
@@ -64,7 +71,9 @@ let win_h=900, win_w=1600;
 let score1=0, score2 = 0;
 let score1text, score2text;
 
-;
+let game_over = null;
+let game_over_text;
+
 
 function preload ()
 {
@@ -79,13 +88,19 @@ ball = this.add.rectangle(ball_x, ball_y, ball_w, ball_h, 0xffff00);
 score1text = this.add.text(player1_x, 50,score1);
 score2text = this.add.text(player2_x,50,score2);
 this.cursors = this.input.keyboard.createCursorKeys();
+game_over_text = this.add.text(win_w/2, win_h/2, "", { fontSize: 96 });
+game_over_text.setOrigin(0.5,0.5);
 }
 
 function update ()
 {
+if(game_over == null){
 if(player_num == 0){
 	return;
 }
+if(!gameStart)
+	return;
+
 if(this.cursors.up.isDown){
 	if(player_num == 1){
 		if(player1.y - 1 - players_h/2 > 0){
@@ -120,23 +135,29 @@ ball_y_dir *= -1;
 }
 if(ball.x + ball_w/2 >win_w){
 ball_reset();
-score2++;
+++score1;
+send_score(score1, score2);
 }  
 
 if(ball.x - ball_w/2 <0){
 ball_reset();
-score1++;
+++score2;
+send_score(score1, score2);
 }
+
+if(Phaser.Geom.Intersects.RectangleToRectangle(ball.getBounds(), player1.getBounds())){
+		ball_x_dir = 1;
+}
+if(Phaser.Geom.Intersects.RectangleToRectangle(ball.getBounds(), player2.getBounds())){
+		ball_x_dir = -1;
+}
+
 let ball_pos = {
 	bx: ball.x,
 	by: ball.y
 }
 ws.send( JSON.stringify(ball_pos));
-let current_score = {
-	s1: score1,
-	s2: score2
-}
-ws.send( JSON.stringify(current_score));
+
 }
 score1text.setText(score1);
 score2text.setText(score2);
@@ -161,12 +182,57 @@ let player_pos = {
 ws.send( JSON.stringify(player_pos) );
 }
 }
+else{
+	//gameOver
+	console.log(game_over);
+	game_over_text.setText(game_over + " WINS");
+	if(player_num == 1 && game_over == "PLAYER 1"){
+		game_over_text.setColor("#00ff00");
+	}
+	else if (player_num == 1){
+		game_over_text.setColor("#ff0000");
+	}
+	if(player_num == 2 && game_over == "PLAYER 2"){
+		game_over_text.setColor("#00ff00");
+	}
+	else if (player_num == 2){
+		game_over_text.setColor("#ff0000");
+	}
+
+	if(player_num > 2){
+		game_over_text.setColor("#00ffff");
+	}
+}
+}
 
 function ball_reset(){
 ball.x = ball_x_init;
 ball.y = ball_y_init;
+get_ball_direction();
 
-ball_x_dir = -ball_x_dir;
+}
+
+function send_score (score1, score2){
+	let current_score = {
+		s1: score1,
+		s2: score2
+	}
+	ws.send(JSON.stringify(current_score));
+}
+
+function get_ball_direction (){
+	let angle = Phaser.Math.Between(-45,45);
+	if(Math.abs(angle) < 10){
+		if (angle < 0)
+			angle -= 10;
+		else
+			angle += 10;
+		
+	}
+	angle = Phaser.Math.DegToRad(angle);
+
+	ball_x_dir = Math.cos(angle) * (Math.random() < 0.5 ? -1 : 1);
+	ball_y_dir = Math.sin(angle);
 }
 
 </script>
