@@ -3,8 +3,33 @@
 <head><title>pENgTI</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.87.0/phaser.min.js"></script>
 	<script>
-let player_num = 0;
+	let player_num = 0;
 	let ws = new WebSocket('ws://192.168.1.53:7777');
+
+	let gameStart = false;
+
+	let player1, player2;
+	let player1_x = 64, player1_y=450;
+	let player2_x=1536,player2_y=450;
+
+	let players_w = 32, players_h = 192;
+
+	let ball;
+	let ball_x=800, ball_y=450;
+	let ball_w=32, ball_h=32;
+
+	let ball_x_dir=4, ball_y_dir=4;
+	let ball_x_init=800, ball_y_init=450;
+
+	let win_h=900, win_w=1600;
+
+
+	let score1=0, score2 = 0;
+	let score1text, score2text;
+
+	let game_over = null;
+	let game_over_text;
+	let statusText;
 
 	ws.onmessage = function(msg){
 		console.log(msg.data);
@@ -12,12 +37,21 @@ let player_num = 0;
 		if(data.player_num != null){
 			player_num = data.player_num;
 		}
-		else if (data.y != null){
-			if(player_num == 1){
-				player2.y = data.y;
+		else if (data.y1 != null){
+			if(player_num >= 2){
+				player1.y = data.y1;
 			}
-			else if(player_num == 2){
-				player1.y = data.y;
+			else{
+				player1.y = data.y1;
+			}
+		}
+		else if (data.y2 != null){
+			if(player_num == 1 || player_num > 2){
+				player2.y = data.y2;
+			}
+			else
+			{
+				player2.y = data.y2;
 			}
 		}
 		else if (data.by != null){
@@ -33,7 +67,10 @@ let player_num = 0;
 		}
 		else if (data.gS != null){
 			gameStart = data.gS;
-		}
+            	} else if (data.message) {
+          	      statusText.setText(data.message);
+          	}
+
 		//else if (data.)
 	};
 
@@ -50,29 +87,7 @@ update: update
 };
 
 let game = new Phaser.Game(config);
-let gameStart = false;
 
-let player1, player2;
-let player1_x = 64, player1_y=450;
-let player2_x=1536,player2_y=450;
-
-let players_w = 32, players_h = 192;
-
-let ball;
-let ball_x=800, ball_y=450;
-let ball_w=32, ball_h=32;
-
-let ball_x_dir=1, ball_y_dir=1;
-let ball_x_init=800, ball_y_init=450;
-
-let win_h=900, win_w=1600;
-
-
-let score1=0, score2 = 0;
-let score1text, score2text;
-
-let game_over = null;
-let game_over_text;
 
 
 function preload ()
@@ -87,6 +102,7 @@ player2 = this.add.rectangle(player2_x, player2_y, players_w, players_h, 0xfffff
 ball = this.add.rectangle(ball_x, ball_y, ball_w, ball_h, 0xffff00);
 score1text = this.add.text(player1_x, 50,score1);
 score2text = this.add.text(player2_x,50,score2);
+statusText = this.add.text(win_w/2, 50, "Waiting for another player...", { fontSize: '32px', fill: '#ffffff' }).setOrigin(0.5, 0.5);
 this.cursors = this.input.keyboard.createCursorKeys();
 game_over_text = this.add.text(win_w/2, win_h/2, "", { fontSize: 96 });
 game_over_text.setOrigin(0.5,0.5);
@@ -98,18 +114,29 @@ if(game_over == null){
 if(player_num == 0){
 	return;
 }
+
+if(player_num > 2){
+	statusText.setText("You are an spectator");
+	score1text.setText(score1);
+	score2text.setText(score2);
+}
+else{
+	statusText.setText(gameStart ? "Game Started!" : "Waiting for another player...");
+}
+
+
 if(!gameStart)
 	return;
 
 if(this.cursors.up.isDown){
 	if(player_num == 1){
 		if(player1.y - 1 - players_h/2 > 0){
-			player1.y -= 1;
+			player1.y -= 4;
 		}
 	}
 	else if (player_num == 2){
 		if(player2.y -1 - players_h/2 > 0){
-			player2.y -= 1;
+			player2.y -= 4;
 		}
 	}
 }
@@ -117,12 +144,12 @@ else if(this.cursors.down.isDown){
 	if(player_num == 1){
 		if(player1.y + 1 + players_h/2 < win_h){
 	
-			player1.y += 1;
+			player1.y += 4;
 		}
 	}
 	else if(player_num == 2){
 		if(player2.y + 1 + players_h/2 < win_h){
-			player2.y += 1;
+			player2.y += 4;
 		}
 	}
 }
@@ -146,10 +173,10 @@ send_score(score1, score2);
 }
 
 if(Phaser.Geom.Intersects.RectangleToRectangle(ball.getBounds(), player1.getBounds())){
-		ball_x_dir = 1;
+		ball_x_dir = 4;
 }
 if(Phaser.Geom.Intersects.RectangleToRectangle(ball.getBounds(), player2.getBounds())){
-		ball_x_dir = -1;
+		ball_x_dir = -4;
 }
 
 let ball_pos = {
@@ -165,7 +192,7 @@ score2text.setText(score2);
 if(player_num == 1){
 let player_pos = {
 x: player1.x,
-y: player1.y
+y1: player1.y
 };
 ws.send( JSON.stringify(player_pos) );
 let ball_pos = {
@@ -177,7 +204,7 @@ ws.send( JSON.stringify(ball_pos) );
 else if(player_num == 2){
 let player_pos = {
 	x: player2.x,
-	y: player2.y
+	y2: player2.y
 };
 ws.send( JSON.stringify(player_pos) );
 }
@@ -200,9 +227,15 @@ else{
 	}
 
 	if(player_num > 2){
-		game_over_text.setColor("#00ffff");
+		game_over_text.setColor("#ffff00");
 	}
 }
+
+
+
+
+
+
 }
 
 function ball_reset(){
@@ -231,7 +264,7 @@ function get_ball_direction (){
 	}
 	angle = Phaser.Math.DegToRad(angle);
 
-	ball_x_dir = Math.cos(angle) * (Math.random() < 0.5 ? -1 : 1);
+	ball_x_dir = Math.cos(angle) * (Math.random() < 0.5 ? -4 : 4);
 	ball_y_dir = Math.sin(angle);
 }
 
